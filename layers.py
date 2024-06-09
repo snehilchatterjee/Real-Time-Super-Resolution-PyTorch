@@ -25,7 +25,7 @@ class Conv2DBlock(nn.Module):
         
         self.conv=Conv2D(in_channels=in_channels,out_channels=out_channels,**kwargs)
         self.batchnorm=nn.BatchNorm2d(out_channels) if batchnorm else None
-        self.activate=nn.PReLU(num_parameters=1,init=0) if activate else None
+        self.activate=nn.PReLU(num_parameters=1,init=0) if activate else None           # IN PAPER LReLU IS USED
     
     def forward(self,x):
         x=self.conv(x)
@@ -55,12 +55,12 @@ class PixelShuffleUpsampling(nn.Module):
     
         return x
     
-class ResidualDenseBlock(nn.Module):            # NOT ENTIRELY DENSE ALSO LESS NUMBER OF CONV2D BLOCKS
+class ResidualDenseBlock(nn.Module):            # NOT ENTIRELY DENSE ALSO LESS NUMBER OF CONV2D BLOCKS ARE USED
     def __init__(self,in_channels,filters=64):
         super(ResidualDenseBlock, self).__init__()     
         self.conv1=Conv2DBlock(in_channels,filters//2)
         self.conv2=Conv2DBlock(filters//2,filters//2)
-        self.conv3=Conv2DBlock(filters//2,filters,activate=False)
+        self.conv3=Conv2DBlock(filters//2,filters,activate=False) 
         
     def forward(self,x):
         x1=self.conv1(x)
@@ -77,8 +77,11 @@ class RRDBlock(nn.Module):
         self.rdb_2 = ResidualDenseBlock(filters, filters)
         self.rdb_3 = ResidualDenseBlock(filters, filters)
 
-        self.rrdb_inputs_scales = nn.Parameter(torch.ones(1, filters, 1, 1))
-        self.rrdb_outputs_scales = nn.Parameter(torch.ones(1, filters, 1, 1) * 0.5)
+        self.beta_input = nn.Parameter(torch.tesnor(1.0))                  # IN THE PAPER IT IS ALWAYS 1 (NOT LEARNABLE)
+        self.rrdb_inputs_scales = torch.ones(1, filters, 1, 1) * self.beta_input
+        
+        self.beta_output = nn.Parameter(torch.tensor(0.5))
+        self.rrdb_outputs_scales = torch.ones(1, filters, 1, 1) * self.beta_output
 
     def forward(self, x):
         x1 = self.rdb_1(x)
