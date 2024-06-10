@@ -29,48 +29,47 @@ class VGGContentTraining:
         vgg[17] = nn.Identity()
         vgg[35] = nn.Identity()
         
-        outputs = {}
+        self.feature_extractor = vgg
+        
+        self.outputs = {}
 
         def get_hook(name):
             def hook(model, input, output):
-                outputs[name] = output
+                self.outputs[name] = output
             return hook
         
         vgg[8].register_forward_hook(get_hook('layer8'))
         vgg[17].register_forward_hook(get_hook('layer17'))
         vgg[35].register_forward_hook(get_hook('layer35'))
         
-        self.feature_extractor = vgg
-
-        '''
-        self.feature_extractor = nn.Sequential(
-            *list(vgg.children())[:20]
-        )
         self.feature_extractor.eval()
-        '''
         
         for param in self.feature_extractor.parameters():
             param.requires_grad = False
     
     def content_loss(self, srs, hrs):
         preprocess = transforms.Compose([
-            transforms.Resize((224, 224)),
-            transforms.ToTensor(),
-            transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
-        ])
+            transforms.Resize((224, 224))])
         
         srs = preprocess(srs)
         hrs = preprocess(hrs)
         
-        srs = srs.unsqueeze(0)  # Add batch dimension
-        hrs = hrs.unsqueeze(0)  # Add batch dimension
         
         srs_features = self.feature_extractor(srs)
+        val1 = self.outputs['layer8']
+        val2= self.outputs['layer17']
+        val3 = self.outputs['layer35']
         hrs_features = self.feature_extractor(hrs)
-
+        val4 = self.outputs['layer8']
+        val5= self.outputs['layer17']
+        val6 = self.outputs['layer35']
+        
+        #print(torch.sum(val1)==torch.sum(val4), torch.sum(val2)==torch.sum(val5), torch.sum(val3)==torch.sum(val6))
+        
         loss = 0.0
-        for srs_feature, hrs_feature in zip(srs_features, hrs_features):
-            loss += self.content_loss_type(hrs_feature / 12.75, srs_feature / 12.75)
-
-        return lo
+        loss += self.content_loss_type(val4 / 12.75, val1 / 12.75)
+        loss += self.content_loss_type(val5 / 12.75, val2 / 12.75)
+        loss += self.content_loss_type(val6 / 12.75, val3 / 12.75)
+        
+        return loss
     
