@@ -2,7 +2,7 @@ import torch
 from torch import nn
 
 class Conv2D(nn.Conv2d):
-    def __init__(self, in_channels, out_channels, kernel_size=3, padding='same', **kwargs):
+    def __init__(self, in_channels, out_channels, kernel_size=3, padding='same',bias=True, **kwargs):
         if padding == 'same':
             padding = kernel_size // 2
         super(Conv2D, self).__init__(
@@ -10,7 +10,7 @@ class Conv2D(nn.Conv2d):
             out_channels=out_channels,
             kernel_size=kernel_size,
             padding=padding,
-            bias=True,
+            bias=bias,
             **kwargs
         )
         
