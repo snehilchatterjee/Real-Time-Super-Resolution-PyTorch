@@ -36,16 +36,16 @@ class Conv2DBlock(nn.Module):
             
         return x
 
-conv_block = Conv2DBlock(in_channels=3,out_channels=64, batchnorm=True, activate=True, kernel_size=3, stride=1, padding=1)
+#conv_block = Conv2DBlock(in_channels=3,out_channels=64, batchnorm=True, activate=True, kernel_size=3, stride=1, padding=1)
 
-print(conv_block(torch.rand(1,3,224,224)).shape)
+#print(conv_block(torch.rand(1,3,224,224)).shape)
 
 class PixelShuffleUpsampling(nn.Module):
     def __init__(self,in_channels,out_channels,upscale_factor=2):
         super(PixelShuffleUpsampling, self).__init__()
         
-        self.upsample=nn.PixelShuffle(upscale_factor)
         self.conv=Conv2DBlock(in_channels=in_channels,out_channels=out_channels,batchnorm=False,activate=False)
+        self.upsample=nn.PixelShuffle(upscale_factor)
         self.prelu=nn.PReLU(num_parameters=1,init=0)
         
     def forward(self,x):
@@ -59,8 +59,8 @@ class ResidualDenseBlock(nn.Module):            # NOT ENTIRELY DENSE ALSO LESS N
     def __init__(self,in_channels,filters=64):
         super(ResidualDenseBlock, self).__init__()     
         self.conv1=Conv2DBlock(in_channels,filters//2)
-        self.conv2=Conv2DBlock(filters//2,filters//2)
-        self.conv3=Conv2DBlock(filters//2,filters,activate=False) 
+        self.conv2=Conv2DBlock(in_channels+filters//2,filters//2)
+        self.conv3=Conv2DBlock(filters,filters,activate=False) 
         
     def forward(self,x):
         x1=self.conv1(x)
@@ -77,7 +77,7 @@ class RRDBlock(nn.Module):
         self.rdb_2 = ResidualDenseBlock(filters, filters)
         self.rdb_3 = ResidualDenseBlock(filters, filters)
 
-        self.beta_input = nn.Parameter(torch.tesnor(1.0))                  # IN THE PAPER IT IS ALWAYS 1 (NOT LEARNABLE)
+        self.beta_input = nn.Parameter(torch.tensor(1.0))                  # IN THE PAPER IT IS ALWAYS 1 (NOT LEARNABLE)
         self.rrdb_inputs_scales = torch.ones(1, filters, 1, 1) * self.beta_input
         
         self.beta_output = nn.Parameter(torch.tensor(0.5))
