@@ -8,7 +8,7 @@ DISC_FILTERS = 64
 
 class Generator(nn.Module):
     def __init__(self):
-        super().__init__()
+        super(Generator, self).__init__()
         
         self.conv1 = Conv2DBlock(in_channels = 3,out_channels = GEN_FILTERS, kernel_size = 3, stride = 1, padding = 'same', batchnorm = False)
         self.conv2 = Conv2DBlock(in_channels = GEN_FILTERS, out_channels = GEN_FILTERS, kernel_size = 1, stride = 1, padding = 'valid', batchnorm = False)

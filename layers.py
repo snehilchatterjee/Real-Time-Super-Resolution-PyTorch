@@ -1,6 +1,26 @@
 import torch
 from torch import nn
 
+class DepthwiseSeparableConv2D(nn.Module):
+    def __init__(self, in_channels, out_channels, kernel_size=3, padding='same', bias=True, **kwargs):
+        super(DepthwiseSeparableConv2D, self).__init__()
+
+        if padding == 'same':
+            padding = kernel_size // 2
+
+        self.depthwise_conv = nn.Conv2d(in_channels, in_channels, kernel_size, padding=padding, groups=in_channels, bias=bias)
+        self.pointwise_conv = nn.Conv2d(in_channels, out_channels, 1, bias=bias)
+
+        nn.init.xavier_normal_(self.depthwise_conv.weight)
+        nn.init.xavier_normal_(self.pointwise_conv.weight)
+        nn.init.zeros_(self.depthwise_conv.bias)
+        nn.init.zeros_(self.pointwise_conv.bias)
+
+    def forward(self, x):
+        x = self.depthwise_conv(x)
+        x = self.pointwise_conv(x)
+        return x
+
 class Conv2D(nn.Conv2d):
     def __init__(self, in_channels, out_channels, kernel_size=3, padding='same',bias=True, **kwargs):
         if padding == 'same':
@@ -87,4 +107,4 @@ class RRDBlock(nn.Module):
         x1 = self.rdb_1(x)
         x2 = self.rdb_2(x1)
         out = self.rdb_3(x2)
-        return (self.rrdb_inputs_scales * x) + (self.rrdb_outputs_scales * out)
+        return (self.rrdb_inputs_scales.to(x.device) * x) + (self.rrdb_outputs_scales.to(x.device) * out)
