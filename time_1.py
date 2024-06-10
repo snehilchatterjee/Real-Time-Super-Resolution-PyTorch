@@ -50,5 +50,5 @@ def calculate_time(model,ip,batch,cuda,use_amp=False):
 from models import Generator
 generator = Generator()
 
-ip = torch.rand(5,3,480,256)
-calculate_time(generator,ip,5,True,True)
+ip = torch.rand(3,3,256,256)
+calculate_time(generator,ip,3,True,True)
