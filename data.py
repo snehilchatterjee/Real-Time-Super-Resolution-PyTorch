@@ -16,16 +16,16 @@ def random_compression(example):
     
     if compression_idx == 0 or compression_idx == 1:
         # bicubic
-        lr = F.interpolate(hr.unsqueeze(0), size=(hr_shape[0] // SCALE, hr_shape[1] // SCALE), mode='bicubic', align_corners=False).squeeze(0)
+        lr = F.interpolate(hr.unsqueeze(0), size=(hr_shape[1] // SCALE, hr_shape[2] // SCALE), mode='bicubic', align_corners=False).squeeze(0)
     elif compression_idx == 2 or compression_idx == 3:
         # bilinear
-        lr = F.interpolate(hr.unsqueeze(0), size=(hr_shape[0] // SCALE, hr_shape[1] // SCALE), mode='bilinear', align_corners=False).squeeze(0)
+        lr = F.interpolate(hr.unsqueeze(0), size=(hr_shape[1] // SCALE, hr_shape[2] // SCALE), mode='bilinear', align_corners=False).squeeze(0)
     elif compression_idx == 4 or compression_idx == 5:
         # nearest
-        lr = F.interpolate(hr.unsqueeze(0), size=(hr_shape[0] // SCALE, hr_shape[1] // SCALE), mode='nearest').squeeze(0)
+        lr = F.interpolate(hr.unsqueeze(0), size=(hr_shape[1] // SCALE, hr_shape[2] // SCALE), mode='nearest').squeeze(0)
     else:
         # default
-        lr = example['lr']
+        lr = example['lr'] # ???
     
     lr = torch.clamp(lr, 0, 255).round().byte()
     return lr, hr
@@ -55,7 +55,7 @@ def random_spatial_augmentation(lrs, hrs):
     if np.random.rand() < 0.5:
         lrs, hrs = random_rotate(lrs, hrs)
 
-    return lrs.float(), hrs.float()
+    return lrs, hrs
 
 def visualize_samples(images_lists, titles=None, size=(12, 12)):
     assert len(images_lists) == len(titles)
