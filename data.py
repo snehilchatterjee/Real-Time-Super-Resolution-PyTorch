@@ -31,17 +31,20 @@ def random_compression(example):
     return lr, hr
 
 # Spatial Random Augmentations
-
 def random_crop(lr, hr):
-    lr_shape = lr.shape[-2:]
-    lr_w = np.random.randint(0, lr_shape[1] - LR_SIZE + 1)
-    lr_h = np.random.randint(0, lr_shape[0] - LR_SIZE + 1)
+    C, lr_h, lr_w = lr.shape
+    _, hr_h, hr_w = hr.shape
 
-    hr_w = lr_w * SCALE
-    hr_h = lr_h * SCALE
+    lr_x = np.random.randint(0, lr_w - LR_SIZE + 1)
+    lr_y = np.random.randint(0, lr_h - LR_SIZE + 1)
 
-    lr_cropped = lr[..., lr_h:lr_h + LR_SIZE, lr_w:lr_w + LR_SIZE]
-    hr_cropped = hr[..., hr_h:hr_h + HR_SIZE, hr_w:hr_w + HR_SIZE]
+    hr_x = lr_x * SCALE
+    hr_y = lr_y * SCALE
+
+    HR_SIZE = LR_SIZE * SCALE
+
+    lr_cropped = lr[:, lr_y:lr_y + LR_SIZE, lr_x:lr_x + LR_SIZE]
+    hr_cropped = hr[:, hr_y:hr_y + HR_SIZE, hr_x:hr_x + HR_SIZE]
 
     return lr_cropped, hr_cropped
 
