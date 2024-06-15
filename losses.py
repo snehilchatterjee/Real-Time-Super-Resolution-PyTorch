@@ -74,7 +74,7 @@ class VGGContentTraining(nn.Module):
         
         return loss
     
-class AdverversialTraining(nn.Module):
+class AdversarialTraining(nn.Module):
     def __init__(self, adv_loss):
         super().__init__()
         self.adv_loss_type = adv_loss
