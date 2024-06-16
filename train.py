@@ -48,8 +48,8 @@ class SRGAN(nn.Module):
         else:
             self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
         
-        self.generator = generator.to(self.device)
-        self.discriminator = discriminator.to(self.device)
+        self.generator = generator
+        self.discriminator = discriminator
         
         self.optimizer_G = generator_optimizer
         self.optimizer_D = discriminator_optimizer
@@ -131,7 +131,8 @@ class SRGAN(nn.Module):
             pixel_loss = self.pixel_loss(self.srs, self.hrs)
 
             pixel_loss.backward(retain_graph=True)
-            self.optimizer_G.step()
+            new_var = self.optimizer_G.step()
+            new_var
 
             return {
                 'Pixel Loss': pixel_loss.item(),
@@ -142,7 +143,7 @@ LR = 0.002
 BETA_1 = 0.9
 BETA_2 = 0.999
 
-PERCEPTUAL_FINETUNE = True
+PERCEPTUAL_FINETUNE = False
 # first train the model for pixel loss
 # once pixel loss is saturated, set perceptual finetune to True
 
@@ -157,17 +158,15 @@ LOSS_WEIGHTS = {
 
 # checkpoint ??
 
-generator = Generator()
-discriminator = Discriminator()
+generator = Generator().to(device)
+discriminator = Discriminator().to(device)
 
 generator.load_state_dict(torch.load('./checkpoints/generator_10.pth'))
 
 generator_optimizer = optim.Adam(generator.parameters(), lr=LR, betas=(BETA_1, BETA_2))
 discriminator_optimizer = optim.Adam(discriminator.parameters(), lr=LR, betas=(BETA_1, BETA_2))
 
-model = SRGAN(generator, discriminator, generator_optimizer, discriminator_optimizer, PERCEPTUAL_FINETUNE, PIXEL_LOSS, CONTENT_LOSS, ADV_LOSS, LOSS_WEIGHTS)
-
-model.train()
+model = SRGAN(generator, discriminator, generator_optimizer, discriminator_optimizer, PERCEPTUAL_FINETUNE, PIXEL_LOSS, CONTENT_LOSS, ADV_LOSS, LOSS_WEIGHTS, cpu_force=False)
 
 '''
 temp_batch = next(iter(train_loader))
