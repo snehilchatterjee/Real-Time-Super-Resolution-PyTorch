@@ -8,7 +8,9 @@ from dataset import *
 #from callbacks import *
 from losses import *
 
-train_dataset = Dataset('../../../DIV2K_Complete/DIV2K_train', '../../../DIV2K_Complete/DIV2K_train_LR_bicubic/X4')
+torch.autograd.set_detect_anomaly(True)
+
+train_dataset = Dataset('../../DIV2K_Complete/DIV2K_train', '../../DIV2K_Complete/DIV2K_train_LR_bicubic/X4')
 train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True, drop_last=True, num_workers=4)
 
 # Sample data inspection
@@ -20,12 +22,9 @@ print(lrs.dtype, hrs.dtype)
 print(torch.min(lrs), torch.max(lrs))
 print(torch.min(hrs), torch.max(hrs))
 
-visualize_samples(images_lists=(lrs[:15], hrs[:15]), titles=('Low Resolution', 'High Resolution'), size=(8, 8))
+#visualize_samples(images_lists=(lrs[:15], hrs[:15]), titles=('Low Resolution', 'High Resolution'), size=(8, 8))
 
-class SRGAN(nn.Module,
-            PixelLossTraining,
-            VGGContentTraining,
-            AdversarialTraining):
+class SRGAN(nn.Module):
     
     def __init__(self,
                 generator,
@@ -38,7 +37,7 @@ class SRGAN(nn.Module,
                 adv_loss,
                 loss_weights):
         
-        super(SRGAN, self).__init__(self)
+        super().__init__()
         
         self.generator = generator
         self.discriminator = discriminator
@@ -48,30 +47,21 @@ class SRGAN(nn.Module,
         
         self.perceptual_finetune = perceptual_finetune
 
-        #self.setup_pixel_loss(pixel_loss)
-        # self.setup_gram_style_loss(style_loss)
-        # uncomment this to utilize style loss function
-        #self.setup_content_loss(content_loss)
-        #self.setup_adversarial_loss(adv_loss)
-        
         self.pixel_loss = PixelLossTraining(pixel_loss)
         self.content_loss = VGGContentTraining(content_loss)
         self.adv_loss = AdversarialTraining(adv_loss)        
 
         if self.perceptual_finetune:
             self.loss_weights = loss_weights
-            
-
 
     def train_step(self, batch):
-        self.lrs = batch[0].to(self.device)  # Assuming batch[0] is the low-resolution images
-        self.hrs = batch[1].to(self.device)  # Assuming batch[1] is the high-resolution images
+        self.lrs = batch[0]  # Assuming batch[0] is the low-resolution images
+        self.hrs = batch[1]  # Assuming batch[1] is the high-resolution images
 
         if self.perceptual_finetune:
-            # [=================== Training Discriminator ===================]
-
-            self.generator.train()
+            
             self.discriminator.train()
+            self.generator.train()
 
             self.srs = self.generator(self.lrs)
 
@@ -96,11 +86,14 @@ class SRGAN(nn.Module,
             # (2) Update G network
             ###################
             
+            #self.generator.train()
+            
             self.optimizer_G.zero_grad()
             
             fake_logits = self.discriminator(self.srs)
+            real_logits = self.discriminator(self.hrs)
                        
-            content_loss = self.loss_weights['content_loss'] * self.content_loss(self.srs, self.hrs)
+            content_loss = self.loss_weights['content_loss'] * self.content_loss(self.srs, self.hrs.type(torch.float32))
             gen_adv_loss = self.loss_weights['adv_loss'] * self.adv_loss.gen_adv_loss(fake_logits, real_logits) # MIGHT CAUSE ERROR HERE
            
             # Combined Loss
@@ -108,13 +101,12 @@ class SRGAN(nn.Module,
             gen_loss = perceptual_loss
             
 
-            self.optimizer_G.zero_grad()
             gen_loss.backward()
             self.optimizer_G.step()
 
             return {
                 'Perceptual Loss': perceptual_loss.item(),
-                # 'Style Loss': style_loss.item(),
+                'Content Loss': content_loss.item(),
                 'Generator Adv Loss': gen_adv_loss.item(),
                 'Discriminator Adv Loss': disc_adv_loss.item(),
             }
@@ -141,7 +133,7 @@ LR = 0.002
 BETA_1 = 0.9
 BETA_2 = 0.999
 
-PERCEPTUAL_FINETUNE = False
+PERCEPTUAL_FINETUNE = True
 # first train the model for pixel loss
 # once pixel loss is saturated, set perceptual finetune to True
 
@@ -165,6 +157,10 @@ discriminator_optimizer = optim.Adam(discriminator.parameters(), lr=LR, betas=(B
 model = SRGAN(generator, discriminator, generator_optimizer, discriminator_optimizer, PERCEPTUAL_FINETUNE, PIXEL_LOSS, CONTENT_LOSS, ADV_LOSS, LOSS_WEIGHTS)
 
 model.train()
+
+temp_batch = next(iter(train_loader))
+result = model.train_step(temp_batch)
+print(result)
 
 
 '''

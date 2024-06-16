@@ -24,7 +24,7 @@ class VGGContentTraining(nn.Module):
         elif content_loss == 'l2':
             self.content_loss_type = nn.MSELoss()
         
-        vgg = models.vgg19(pretrained=True).features
+        vgg = models.vgg19(weights=models.VGG19_Weights.IMAGENET1K_V1).features
         
         # Remove activations for specified layers
         vgg[8] = nn.Identity()
@@ -51,7 +51,7 @@ class VGGContentTraining(nn.Module):
     
     def __call__(self, srs, hrs):
         preprocess = transforms.Compose([
-            transforms.Resize((224, 224))])
+            transforms.Resize((224, 224),antialias=True)])
         
         srs = preprocess(srs)
         hrs = preprocess(hrs)
