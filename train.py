@@ -48,76 +48,79 @@ class SRGAN(nn.Module,
         
         self.perceptual_finetune = perceptual_finetune
 
-        self.setup_pixel_loss(pixel_loss)
+        #self.setup_pixel_loss(pixel_loss)
         # self.setup_gram_style_loss(style_loss)
         # uncomment this to utilize style loss function
-        self.setup_content_loss(content_loss)
-        self.setup_adversarial_loss(adv_loss)
+        #self.setup_content_loss(content_loss)
+        #self.setup_adversarial_loss(adv_loss)
+        
+        self.pixel_loss = PixelLossTraining(pixel_loss)
+        self.content_loss = VGGContentTraining(content_loss)
+        self.gen_adv_loss = AdversarialTraining(adv_loss)        
 
         if self.perceptual_finetune:
             self.loss_weights = loss_weights
             
+
+
+    def train_step(self, batch):
+        self.lrs = batch[0].to(self.device)  # Assuming batch[0] is the low-resolution images
+        self.hrs = batch[1].to(self.device)  # Assuming batch[1] is the high-resolution images
+
+        if self.perceptual_finetune:
+            # [=================== Training Discriminator ===================]
+
+            self.generator.train()
+            self.discriminator.train()
+
+            self.optimizer_G.zero_grad()
+            self.optimizer_D.zero_grad()
+
+            self.srs = self.generator(self.lrs)
+
+            real_logits = self.discriminator(self.hrs)
+            fake_logits = self.discriminator(self.srs.detach())
+
+            content_loss = self.loss_weights['content_loss'] * self.content_loss(self.srs, self.hrs)
+            gen_adv_loss = self.loss_weights['adv_loss'] * self.gen_adv_loss(fake_logits, real_logits)
+            perceptual_loss = content_loss + gen_adv_loss
             
-    import torch
+            # style_loss = self.loss_weights['style_loss'] * self.gram_style_loss(self.srs, self.hrs)
+            # Uncomment and add to gen_loss to utilize style loss function
 
-def train_step(self, batch):
-    self.lrs = batch[0].to(self.device)  # Assuming batch[0] is the low-resolution images
-    self.hrs = batch[1].to(self.device)  # Assuming batch[1] is the high-resolution images
+            gen_loss = perceptual_loss
+            disc_adv_loss = self.disc_adv_loss(fake_logits, real_logits)
 
-    if self.perceptual_finetune:
-        # [=================== Training Discriminator ===================]
+            disc_adv_loss.backward()
+            self.optimizer_D.step()
 
-        self.generator.train()
-        self.discriminator.train()
+            self.optimizer_G.zero_grad()
+            gen_loss.backward()
+            self.optimizer_G.step()
 
-        self.optimizer_G.zero_grad()
-        self.optimizer_D.zero_grad()
-
-        self.srs = self.generator(self.lrs)
-
-        real_logits = self.discriminator(self.hrs)
-        fake_logits = self.discriminator(self.srs.detach())
-
-        content_loss = self.loss_weights['content_loss'] * self.content_loss(self.srs, self.hrs)
-        gen_adv_loss = self.loss_weights['adv_loss'] * self.gen_adv_loss(fake_logits, real_logits)
-        perceptual_loss = content_loss + gen_adv_loss
+            return {
+                'Perceptual Loss': perceptual_loss.item(),
+                # 'Style Loss': style_loss.item(),
+                'Generator Adv Loss': gen_adv_loss.item(),
+                'Discriminator Adv Loss': disc_adv_loss.item(),
+            }
         
-        # style_loss = self.loss_weights['style_loss'] * self.gram_style_loss(self.srs, self.hrs)
-        # Uncomment and add to gen_loss to utilize style loss function
+        else:
+            # [=================== Training Generator Only ===================]
 
-        gen_loss = perceptual_loss
-        disc_adv_loss = self.disc_adv_loss(fake_logits, real_logits)
+            self.generator.train()
+            self.optimizer_G.zero_grad()
 
-        disc_adv_loss.backward()
-        self.optimizer_D.step()
+            self.srs = self.generator(self.lrs)
 
-        self.optimizer_G.zero_grad()
-        gen_loss.backward()
-        self.optimizer_G.step()
+            pixel_loss = self.pixel_loss(self.srs, self.hrs)
 
-        return {
-            'Perceptual Loss': perceptual_loss.item(),
-            # 'Style Loss': style_loss.item(),
-            'Generator Adv Loss': gen_adv_loss.item(),
-            'Discriminator Adv Loss': disc_adv_loss.item(),
-        }
-    
-    else:
-        # [=================== Training Generator Only ===================]
+            pixel_loss.backward()
+            self.optimizer_G.step()
 
-        self.generator.train()
-        self.optimizer_G.zero_grad()
-
-        self.srs = self.generator(self.lrs)
-
-        pixel_loss = self.pixel_loss(self.srs, self.hrs)
-
-        pixel_loss.backward()
-        self.optimizer_G.step()
-
-        return {
-            'Pixel Loss': pixel_loss.item(),
-        }
+            return {
+                'Pixel Loss': pixel_loss.item(),
+            }
 
     '''
             
