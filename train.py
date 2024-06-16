@@ -30,19 +30,23 @@ print(torch.min(hrs), torch.max(hrs))
 class SRGAN(nn.Module):
     
     def __init__(self,
-                 generator,
-                 discriminator,
-                 generator_optimizer, 
-                 discriminator_optimizer,
-                 perceptual_finetune,
-                 pixel_loss,
-                 content_loss,
-                 adv_loss,
-                 loss_weights):
+                generator,
+                discriminator,
+                generator_optimizer, 
+                discriminator_optimizer,
+                perceptual_finetune,
+                pixel_loss,
+                content_loss,
+                adv_loss,
+                loss_weights,
+                cpu_force=True):
         
         super().__init__()
         
-        self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
+        if cpu_force:
+            self.device = 'cpu'
+        else:
+            self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
         
         self.generator = generator.to(self.device)
         self.discriminator = discriminator.to(self.device)
@@ -138,7 +142,7 @@ LR = 0.002
 BETA_1 = 0.9
 BETA_2 = 0.999
 
-PERCEPTUAL_FINETUNE = False
+PERCEPTUAL_FINETUNE = True
 # first train the model for pixel loss
 # once pixel loss is saturated, set perceptual finetune to True
 
@@ -155,6 +159,8 @@ LOSS_WEIGHTS = {
 
 generator = Generator()
 discriminator = Discriminator()
+
+generator.load_state_dict(torch.load('./checkpoints/generator_10.pth'))
 
 generator_optimizer = optim.Adam(generator.parameters(), lr=LR, betas=(BETA_1, BETA_2))
 discriminator_optimizer = optim.Adam(discriminator.parameters(), lr=LR, betas=(BETA_1, BETA_2))
@@ -180,6 +186,8 @@ for epoch in range(EPOCHS):
         result=model.train_step(batch)
         print(f'Epoch: {epoch}/{EPOCHS}')
         print(result)    
+        torch.save(model.generator.state_dict(), f'./checkpoints/latest_gen.pth')
+        torch.save(model.discriminator.state_dict(), f'./checkpoints/latest_disc.pth')
     
 
         
