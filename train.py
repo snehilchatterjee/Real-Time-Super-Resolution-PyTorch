@@ -133,7 +133,7 @@ LR = 0.002
 BETA_1 = 0.9
 BETA_2 = 0.999
 
-PERCEPTUAL_FINETUNE = True
+PERCEPTUAL_FINETUNE = False
 # first train the model for pixel loss
 # once pixel loss is saturated, set perceptual finetune to True
 
