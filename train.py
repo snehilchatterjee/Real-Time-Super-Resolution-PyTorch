@@ -8,6 +8,9 @@ from dataset import *
 #from callbacks import *
 from losses import *
 
+device = 'cuda' if torch.cuda.is_available() else 'cpu'
+print(f"Using: {device}")
+
 torch.autograd.set_detect_anomaly(True)
 
 train_dataset = Dataset('../../DIV2K_Complete/DIV2K_train', '../../DIV2K_Complete/DIV2K_train_LR_bicubic/X4')
@@ -27,36 +30,38 @@ print(torch.min(hrs), torch.max(hrs))
 class SRGAN(nn.Module):
     
     def __init__(self,
-                generator,
-                discriminator,
-                generator_optimizer, 
-                discriminator_optimizer,
-                perceptual_finetune,
-                pixel_loss,
-                content_loss,
-                adv_loss,
-                loss_weights):
+                 generator,
+                 discriminator,
+                 generator_optimizer, 
+                 discriminator_optimizer,
+                 perceptual_finetune,
+                 pixel_loss,
+                 content_loss,
+                 adv_loss,
+                 loss_weights):
         
         super().__init__()
         
-        self.generator = generator
-        self.discriminator = discriminator
+        self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
+        
+        self.generator = generator.to(self.device)
+        self.discriminator = discriminator.to(self.device)
         
         self.optimizer_G = generator_optimizer
         self.optimizer_D = discriminator_optimizer
         
         self.perceptual_finetune = perceptual_finetune
 
-        self.pixel_loss = PixelLossTraining(pixel_loss)
-        self.content_loss = VGGContentTraining(content_loss)
-        self.adv_loss = AdversarialTraining(adv_loss)        
+        self.pixel_loss = PixelLossTraining(pixel_loss).to(self.device)
+        self.content_loss = VGGContentTraining(content_loss).to(self.device)
+        self.adv_loss = AdversarialTraining(adv_loss).to(self.device)        
 
         if self.perceptual_finetune:
             self.loss_weights = loss_weights
 
     def train_step(self, batch):
-        self.lrs = batch[0]  # Assuming batch[0] is the low-resolution images
-        self.hrs = batch[1]  # Assuming batch[1] is the high-resolution images
+        self.lrs = batch[0].to(self.device) # Assuming batch[0] is the low-resolution images
+        self.hrs = batch[1].to(self.device) # Assuming batch[1] is the high-resolution images
 
         if self.perceptual_finetune:
             
@@ -101,7 +106,7 @@ class SRGAN(nn.Module):
             gen_loss = perceptual_loss
             
 
-            gen_loss.backward()
+            gen_loss.backward(retain_graph=True)
             self.optimizer_G.step()
 
             return {
@@ -121,7 +126,7 @@ class SRGAN(nn.Module):
 
             pixel_loss = self.pixel_loss(self.srs, self.hrs)
 
-            pixel_loss.backward()
+            pixel_loss.backward(retain_graph=True)
             self.optimizer_G.step()
 
             return {
@@ -158,19 +163,28 @@ model = SRGAN(generator, discriminator, generator_optimizer, discriminator_optim
 
 model.train()
 
+'''
 temp_batch = next(iter(train_loader))
 result = model.train_step(temp_batch)
 print(result)
-
-
 '''
+
+# if checkpoint folder doesn't exist, create it
+if not os.path.exists('./checkpoints'):
+    os.makedirs('./checkpoints')
+
+
 
 for epoch in range(EPOCHS):
     for batch in train_loader:
-        model.train_step(batch)
+        result=model.train_step(batch)
+        print(f'Epoch: {epoch}/{EPOCHS}')
+        print(result)    
+    
+
         
     if epoch % 10 == 0:
-        print(f'Epoch: {epoch}/{EPOCHS}')
+        torch.save(model.generator.state_dict(), f'./checkpoints/generator_{epoch}.pth')
+        torch.save(model.discriminator.state_dict(), f'./checkpoints/disciminator_{epoch}.pth')
         # save model checkpoint
         
-'''

@@ -11,8 +11,10 @@ class Dataset(torch.utils.data.Dataset):
         self.low_res_path = low_res_path
         
         self.high_dataset = os.listdir(high_res_path)
+        self.high_dataset.sort()
         if low_res_path is not None:
             self.low_dataset = os.listdir(low_res_path)
+            self.low_dataset.sort()
         
     def __len__(self):
         return len(self.high_dataset)
