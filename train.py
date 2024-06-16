@@ -136,4 +136,45 @@ class SRGAN(nn.Module,
                 'Pixel Loss': pixel_loss.item(),
             }
 
-    
+EPOCHS = 1000
+LR = 0.002
+BETA_1 = 0.9
+BETA_2 = 0.999
+
+PERCEPTUAL_FINETUNE = False
+# first train the model for pixel loss
+# once pixel loss is saturated, set perceptual finetune to True
+
+PIXEL_LOSS = 'l1'
+CONTENT_LOSS = 'l1'
+ADV_LOSS = 'ragan'
+
+LOSS_WEIGHTS = {
+    'content_loss': 1.0,
+    'adv_loss': 0.09,
+}
+
+# checkpoint ??
+
+generator = Generator()
+discriminator = Discriminator()
+
+generator_optimizer = optim.Adam(generator.parameters(), lr=LR, betas=(BETA_1, BETA_2))
+discriminator_optimizer = optim.Adam(discriminator.parameters(), lr=LR, betas=(BETA_1, BETA_2))
+
+model = SRGAN(generator, discriminator, generator_optimizer, discriminator_optimizer, PERCEPTUAL_FINETUNE, PIXEL_LOSS, CONTENT_LOSS, ADV_LOSS, LOSS_WEIGHTS)
+
+model.train()
+
+
+'''
+
+for epoch in range(EPOCHS):
+    for batch in train_loader:
+        model.train_step(batch)
+        
+    if epoch % 10 == 0:
+        print(f'Epoch: {epoch}/{EPOCHS}')
+        # save model checkpoint
+        
+'''
