@@ -43,8 +43,8 @@ class SRGAN(nn.Module,
         self.generator = generator
         self.discriminator = discriminator
         
-        self.generator.optimizer = generator_optimizer
-        self.discriminator.optimizer = discriminator_optimizer
+        self.optimizer_G = generator_optimizer
+        self.optimizer_D = discriminator_optimizer
         
         self.perceptual_finetune = perceptual_finetune
 
@@ -56,7 +56,7 @@ class SRGAN(nn.Module,
         
         self.pixel_loss = PixelLossTraining(pixel_loss)
         self.content_loss = VGGContentTraining(content_loss)
-        self.gen_adv_loss = AdversarialTraining(adv_loss)        
+        self.adv_loss = AdversarialTraining(adv_loss)        
 
         if self.perceptual_finetune:
             self.loss_weights = loss_weights
@@ -73,26 +73,40 @@ class SRGAN(nn.Module,
             self.generator.train()
             self.discriminator.train()
 
-            self.optimizer_G.zero_grad()
-            self.optimizer_D.zero_grad()
-
             self.srs = self.generator(self.lrs)
 
+            ###################
+            # (1) Update D network
+            ###################
+            
+            self.optimizer_D.zero_grad()
+            
+            # train with real
             real_logits = self.discriminator(self.hrs)
+            
+            # train with fake
             fake_logits = self.discriminator(self.srs.detach())
 
-            content_loss = self.loss_weights['content_loss'] * self.content_loss(self.srs, self.hrs)
-            gen_adv_loss = self.loss_weights['adv_loss'] * self.gen_adv_loss(fake_logits, real_logits)
-            perceptual_loss = content_loss + gen_adv_loss
-            
-            # style_loss = self.loss_weights['style_loss'] * self.gram_style_loss(self.srs, self.hrs)
-            # Uncomment and add to gen_loss to utilize style loss function
-
-            gen_loss = perceptual_loss
-            disc_adv_loss = self.disc_adv_loss(fake_logits, real_logits)
-
+            # Combined Loss            
+            disc_adv_loss = self.adv_loss.disc_adv_loss(fake_logits, real_logits)
             disc_adv_loss.backward()
             self.optimizer_D.step()
+            
+            ###################
+            # (2) Update G network
+            ###################
+            
+            self.optimizer_G.zero_grad()
+            
+            fake_logits = self.discriminator(self.srs)
+                       
+            content_loss = self.loss_weights['content_loss'] * self.content_loss(self.srs, self.hrs)
+            gen_adv_loss = self.loss_weights['adv_loss'] * self.adv_loss.gen_adv_loss(fake_logits, real_logits) # MIGHT CAUSE ERROR HERE
+           
+            # Combined Loss
+            perceptual_loss = content_loss + gen_adv_loss
+            gen_loss = perceptual_loss
+            
 
             self.optimizer_G.zero_grad()
             gen_loss.backward()
@@ -122,57 +136,4 @@ class SRGAN(nn.Module,
                 'Pixel Loss': pixel_loss.item(),
             }
 
-    '''
-            
-    def train_step(self, batch):
-        self.lrs = batch[0]
-        self.hrs = batch[1]
-
-        if self.perceptual_finetune:
-            # [=================== Training Discriminator ===================]
-
-            with tf.GradientTape() as disc_tape, tf.GradientTape() as gen_tape:
-                self.srs = self.generator(self.lrs, training = True)
-
-                real_logits = self.discriminator(self.hrs, training = True)
-                fake_logits = self.discriminator(self.srs, training = True)
-
-                content_loss = self.loss_weights['content_loss'] * self.content_loss(self.srs, self.hrs)
-                gen_adv_loss = self.loss_weights['adv_loss'] * self.gen_adv_loss(fake_logits, real_logits)
-                perceptual_loss = content_loss + gen_adv_loss
-                
-                # style_loss = self.loss_weights['style_loss'] * self.gram_style_loss(self.srs, self.hrs)
-                # uncomment this and add it to gen_loss to utilize style loss function
-
-                gen_loss = perceptual_loss
-
-                disc_adv_loss = self.disc_adv_loss(fake_logits, real_logits)
-            
-            discriminator_gradients = disc_tape.gradient(disc_adv_loss, self.discriminator.trainable_variables)
-            generator_gradients = gen_tape.gradient(gen_loss, self.generator.trainable_variables)
-            
-            self.discriminator.optimizer.apply_gradients(zip(discriminator_gradients, self.discriminator.trainable_variables))
-            self.generator.optimizer.apply_gradients(zip(generator_gradients, self.generator.trainable_variables))
-
-            return {
-                'Perceptual Loss': perceptual_loss,
-                # 'Style Loss': style_loss,
-                'Generator Adv Loss': gen_adv_loss,
-                'Discriminator Adv Loss': disc_adv_loss,
-            }
-        
-        else:
-            with tf.GradientTape() as gen_tape:
-                self.srs = self.generator(self.lrs, training = True)
-
-                pixel_loss = self.pixel_loss(self.srs, self.hrs)
-
-            generator_gradients = gen_tape.gradient(pixel_loss, self.generator.trainable_variables)
-            self.generator.optimizer.apply_gradients(zip(generator_gradients, self.generator.trainable_variables))
-
-            return {
-                'Pixel Loss': pixel_loss,
-            }
-
-    '''
     
