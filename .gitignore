@@ -163,3 +163,5 @@ cython_debug/
 
 
 temp/
+train_2.py
+checkpoints/

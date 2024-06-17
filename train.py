@@ -139,8 +139,8 @@ class SRGAN(nn.Module):
             }
 
 EPOCHS = 1000
-LR = 0.002
-BETA_1 = 0.9
+LR = 0.00002
+BETA_1 = 0.8
 BETA_2 = 0.999
 
 PERCEPTUAL_FINETUNE = False
@@ -158,15 +158,13 @@ LOSS_WEIGHTS = {
 
 # checkpoint ??
 
-generator = Generator().to(device)
-discriminator = Discriminator().to(device)
-
-generator.load_state_dict(torch.load('./checkpoints/generator_10.pth'))
+generator = Generator()
+discriminator = Discriminator()
 
 generator_optimizer = optim.Adam(generator.parameters(), lr=LR, betas=(BETA_1, BETA_2))
 discriminator_optimizer = optim.Adam(discriminator.parameters(), lr=LR, betas=(BETA_1, BETA_2))
 
-model = SRGAN(generator, discriminator, generator_optimizer, discriminator_optimizer, PERCEPTUAL_FINETUNE, PIXEL_LOSS, CONTENT_LOSS, ADV_LOSS, LOSS_WEIGHTS, cpu_force=False)
+model = SRGAN(generator, discriminator, generator_optimizer, discriminator_optimizer, PERCEPTUAL_FINETUNE, PIXEL_LOSS, CONTENT_LOSS, ADV_LOSS, LOSS_WEIGHTS, cpu_force=True)
 
 '''
 temp_batch = next(iter(train_loader))
@@ -179,19 +177,42 @@ if not os.path.exists('./checkpoints'):
     os.makedirs('./checkpoints')
 
 
-
+min_loss=1000000
 for epoch in range(EPOCHS):
+    print(f'Epoch: {epoch+1}/{EPOCHS}')
+    iteration=0
     for batch in train_loader:
         result=model.train_step(batch)
-        print(f'Epoch: {epoch}/{EPOCHS}')
-        print(result)    
+        if('Pixel Loss' in result):
+            if(result['Pixel Loss']<min_loss):
+                
+                print('\n---------------------Lowest Pixel Loss Found!---------------------')
+                print(f'Iteration: {iteration}')
+                print(result)
+                print('\n')
+                
+                min_loss=result['Pixel Loss']
+                torch.save(model.generator.state_dict(), f'./checkpoints/best_gen.pth')
+                torch.save(model.discriminator.state_dict(), f'./checkpoints/best_disc.pth')
+        if('Perceptual Loss' in result):
+            if(result['Perceptual Loss']<min_loss):
+                
+                print('\n---------------------Lowest Perceptual Loss Found!---------------------')
+                print(f'Iteration: {iteration}')
+                print(result)
+                print('\n')
+                
+                min_loss=result['Perceptual Loss']
+                torch.save(model.generator.state_dict(), f'./checkpoints/best_gen.pth')
+                torch.save(model.discriminator.state_dict(), f'./checkpoints/best_disc.pth')
+            
+        
+        if(iteration%10==0):
+            print(f'Iteration: {iteration}')
+            print(result)
+            
         torch.save(model.generator.state_dict(), f'./checkpoints/latest_gen.pth')
         torch.save(model.discriminator.state_dict(), f'./checkpoints/latest_disc.pth')
-    
+            
+        iteration+=1
 
-        
-    if epoch % 10 == 0:
-        torch.save(model.generator.state_dict(), f'./checkpoints/generator_{epoch}.pth')
-        torch.save(model.discriminator.state_dict(), f'./checkpoints/disciminator_{epoch}.pth')
-        # save model checkpoint
-        
